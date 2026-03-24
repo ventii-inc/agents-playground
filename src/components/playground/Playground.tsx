@@ -42,6 +42,7 @@ import {
 import { RoomAgentDispatch } from "livekit-server-sdk";
 import { QRCodeSVG } from "qrcode.react";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { useRecording } from "@/hooks/useRecording";
 import tailwindTheme from "../../lib/tailwindTheme.preval";
 import { RpcPanel } from "./RpcPanel";
 
@@ -118,6 +119,9 @@ export default function Playground({
     sendRequest,
   );
 
+  const { isRecording, duration: recordingDuration, toggleRecording, stopRecording } =
+    useRecording(agent.cameraTrack, agent.microphoneTrack);
+
   const localScreenTrack = session.room.localParticipant.getTrackPublication(
     Track.Source.ScreenShare,
   );
@@ -155,8 +159,9 @@ export default function Playground({
   useEffect(() => {
     if (connectionState === ConnectionState.Disconnected) {
       clearEvents();
+      stopRecording();
     }
-  }, [connectionState, clearEvents]);
+  }, [connectionState, clearEvents, stopRecording]);
 
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
@@ -639,6 +644,9 @@ export default function Playground({
           height={headerHeight}
           accentColor={config.settings.theme_color}
           connectionState={connectionState}
+          isRecording={isRecording}
+          recordingDuration={recordingDuration}
+          onRecordClicked={toggleRecording}
           onConnectClicked={() => {
             if (connectionState === ConnectionState.Disconnected) {
               startSession();
