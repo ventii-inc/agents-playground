@@ -36,11 +36,12 @@ export default function Home() {
 export function HomeInner() {
   const { config } = useConfig();
   const { toastMessage, setToastMessage } = useToast();
-  const [autoConnect, setAutoConnect] = useState(false);
+  const hasLiveKitUrl = !!process.env.NEXT_PUBLIC_LIVEKIT_URL;
+  const [autoConnect, setAutoConnect] = useState(hasLiveKitUrl);
   const [tokenSource, setTokenSource] = useState<
     TokenSourceConfigurable | undefined
   >(() => {
-    if (process.env.NEXT_PUBLIC_LIVEKIT_URL) {
+    if (hasLiveKitUrl) {
       return TokenSource.endpoint("/api/token");
     }
     return undefined;
