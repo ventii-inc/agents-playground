@@ -2,10 +2,26 @@ import { NextApiRequest, NextApiResponse } from "next";
 
 import { TokenSourceRequestPayload } from "livekit-client";
 import { AccessToken } from "livekit-server-sdk";
-import { RoomConfiguration } from "@livekit/protocol";
+import { RoomConfiguration, RoomAgentDispatch } from "@livekit/protocol";
+import yaml from "js-yaml";
 
 const apiKey = process.env.LIVEKIT_API_KEY;
 const apiSecret = process.env.LIVEKIT_API_SECRET;
+
+// Parse agent name from NEXT_PUBLIC_APP_CONFIG YAML if set
+function getDefaultAgentName(): string | undefined {
+  const appConfig = process.env.NEXT_PUBLIC_APP_CONFIG;
+  if (!appConfig) return undefined;
+  try {
+    const parsed = yaml.load(appConfig) as Record<string, unknown>;
+    const settings = parsed?.settings as Record<string, unknown> | undefined;
+    return settings?.agent as string | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const defaultAgentName = getDefaultAgentName();
 
 type TokenRequest = {
   room_name: string;
@@ -25,7 +41,7 @@ async function createToken(request: TokenRequest) {
     {
       identity: request.participant_identity,
       // Token to expire after 10 minutes
-      ttl: "10m",
+      ttl: "50h",
     },
   );
 
@@ -76,6 +92,16 @@ export default async function handleToken(
   options.room_name = options.room_name ?? options.roomName ?? `room-${suffix}`;
   options.participant_identity =
     options.participant_identity ?? options.participantName ?? `user-${suffix}`;
+
+  // Inject default agent dispatch if not provided by the SDK
+  if (!options.room_config && defaultAgentName) {
+    console.log(`[token] injecting default agent dispatch: ${defaultAgentName}`);
+    options.room_config = {
+      agents: [{ agentName: defaultAgentName }],
+    };
+  }
+
+  console.log("[token] room_config:", JSON.stringify(options.room_config ?? null));
 
   try {
     res.status(200).json({
