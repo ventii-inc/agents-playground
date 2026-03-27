@@ -37,7 +37,7 @@ export function HomeInner() {
   const { config } = useConfig();
   const { toastMessage, setToastMessage } = useToast();
   const hasLiveKitUrl = !!process.env.NEXT_PUBLIC_LIVEKIT_URL;
-  const [autoConnect, setAutoConnect] = useState(hasLiveKitUrl);
+  const [autoConnect, setAutoConnect] = useState(false);
   const [tokenSource, setTokenSource] = useState<
     TokenSourceConfigurable | undefined
   >(() => {
