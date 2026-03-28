@@ -1,7 +1,7 @@
 "use client";
 
 import { TrackReferenceOrPlaceholder } from "@livekit/components-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useRecording(
   videoTrack?: TrackReferenceOrPlaceholder,
@@ -12,6 +12,25 @@ export function useRecording(
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Sync audio track into the active recording stream when it becomes available
+  useEffect(() => {
+    const stream = streamRef.current;
+    if (!stream || !isRecording) return;
+
+    const audioMSTrack = audioTrack?.publication?.track?.mediaStreamTrack;
+
+    // Remove any stale audio tracks
+    for (const t of stream.getAudioTracks()) {
+      stream.removeTrack(t);
+    }
+
+    // Add the current audio track if available
+    if (audioMSTrack) {
+      stream.addTrack(audioMSTrack);
+    }
+  }, [audioTrack?.publication?.track?.mediaStreamTrack, isRecording]);
 
   const startRecording = useCallback(() => {
     const stream = new MediaStream();
@@ -28,6 +47,8 @@ export function useRecording(
     if (audioMSTrack) {
       stream.addTrack(audioMSTrack);
     }
+
+    streamRef.current = stream;
 
     const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
       ? "video/webm;codecs=vp9,opus"
@@ -70,6 +91,7 @@ export function useRecording(
       recorderRef.current.stop();
     }
     recorderRef.current = null;
+    streamRef.current = null;
     setIsRecording(false);
 
     if (timerRef.current) {
