@@ -22,6 +22,10 @@ export const ChatMessageInput = ({
   const windowSize = useWindowResize();
   const [isTyping, setIsTyping] = useState(false);
   const [inputHasFocus, setInputHasFocus] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
+  // -1 means "not navigating history" (showing the current draft)
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const draftRef = useRef("");
 
   const handleSend = useCallback(() => {
     if (!onSend) {
@@ -32,6 +36,11 @@ export const ChatMessageInput = ({
     }
 
     onSend(message);
+    setHistory((prev) =>
+      prev[prev.length - 1] === message ? prev : [...prev, message],
+    );
+    setHistoryIndex(-1);
+    draftRef.current = "";
     setMessage("");
   }, [onSend, message]);
 
@@ -88,6 +97,9 @@ export const ChatMessageInput = ({
           value={message}
           onChange={(e) => {
             setMessage(e.target.value);
+            if (historyIndex === -1) {
+              draftRef.current = e.target.value;
+            }
           }}
           onFocus={() => {
             setInputHasFocus(true);
@@ -98,6 +110,30 @@ export const ChatMessageInput = ({
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               handleSend();
+            } else if (e.key === "ArrowUp") {
+              if (history.length === 0) {
+                return;
+              }
+              e.preventDefault();
+              const nextIndex =
+                historyIndex === -1
+                  ? history.length - 1
+                  : Math.max(0, historyIndex - 1);
+              setHistoryIndex(nextIndex);
+              setMessage(history[nextIndex]);
+            } else if (e.key === "ArrowDown") {
+              if (historyIndex === -1) {
+                return;
+              }
+              e.preventDefault();
+              const nextIndex = historyIndex + 1;
+              if (nextIndex >= history.length) {
+                setHistoryIndex(-1);
+                setMessage(draftRef.current);
+              } else {
+                setHistoryIndex(nextIndex);
+                setMessage(history[nextIndex]);
+              }
             }
           }}
         ></input>
