@@ -1,0 +1,10 @@
+# Firebase App Hosting builds with pnpm 11, which refuses to run dependency
+# build scripts unless they are explicitly approved (strictDepBuilds).
+# These three compile native binaries and need their install scripts:
+#   sharp         - Next.js image optimization
+#   esbuild       - used by tsx
+#   unrs-resolver - ESLint import resolver
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
