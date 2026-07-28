@@ -25,6 +25,15 @@ The repo containing the (server side) agent implementations (including example a
 
 You can try out a demo of the playground with [KITT](https://kitt.livekit.io) or the [hosted playground](https://agents-playground.livekit.io) for your own agents.
 
+## Deployment
+
+This fork is deployed to Firebase App Hosting at
+[agent-playground--video-clone-504ba.asia-east1.hosted.app](https://agent-playground--video-clone-504ba.asia-east1.hosted.app)
+(project `video-clone-504ba`, backend `agent-playground`).
+
+See [docs/deployment.md](docs/deployment.md) for how to deploy, manage secrets,
+and troubleshoot builds.
+
 ## Setting up the playground locally
 
 1. Install dependencies
