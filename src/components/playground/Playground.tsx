@@ -18,6 +18,7 @@ import {
 } from "@/components/playground/PlaygroundTile";
 import { useRemoteSession } from "@/hooks/useRemoteSession";
 import { useConfig } from "@/hooks/useConfig";
+import { useReceiverJitterBuffer } from "@/hooks/useReceiverJitterBuffer";
 import { useUplinkLatency } from "@/hooks/useUplinkLatency";
 import { PartialMessage } from "@bufbuild/protobuf";
 import {
@@ -91,6 +92,7 @@ export default function Playground({
   ]);
 
   const session = useSession(tokenSource, tokenFetchOptions);
+  useReceiverJitterBuffer(session.room);
   const { connectionState } = session;
   const agent = useAgent(session);
   const messages = useSessionMessages(session);

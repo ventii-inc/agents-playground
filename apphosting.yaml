@@ -6,6 +6,8 @@ env:
   # Public env vars (bundled into client at build time)
   - variable: NEXT_PUBLIC_LIVEKIT_URL
     value: wss://dev-i7ox1f30.livekit.cloud
+  - variable: NEXT_PUBLIC_RECEIVER_JITTER_BUFFER_MS
+    value: "625"
   - variable: NEXT_PUBLIC_APP_CONFIG
     value: |
       title: 'Ventii Avatar Playground'
