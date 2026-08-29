@@ -263,10 +263,22 @@ export default function Playground({
         />
       );
     }
-    return <></>;
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 text-gray-700 text-center w-full h-full">
+        {connectionState === ConnectionState.Disconnected ? (
+          "No agent connected. Connect to get started."
+        ) : (
+          <>
+            <LoadingSVG />
+            Waiting for agent to join…
+          </>
+        )}
+      </div>
+    );
   }, [
     agent.isConnected,
     config.settings.theme_color,
+    connectionState,
     messages.messages,
     messages.send,
   ]);
@@ -536,7 +548,14 @@ const agentAttributes = useParticipantAttributes({
   if (config.settings.chat) {
     mobileTabs.push({
       title: "Chat",
-      content: chatTileContent,
+      content: (
+        <PlaygroundTile
+          className="w-full h-full grow"
+          childrenClassName="justify-center"
+        >
+          {chatTileContent}
+        </PlaygroundTile>
+      ),
     });
   }
 
@@ -583,7 +602,7 @@ const agentAttributes = useParticipantAttributes({
             <PlaygroundTabbedTile
               className="h-full"
               tabs={mobileTabs}
-              initialTab={mobileTabs.length - 1}
+              initialTab={0}
             />
           </div>
           <div

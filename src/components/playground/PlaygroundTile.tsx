@@ -66,9 +66,12 @@ export const PlaygroundTabbedTile: React.FC<PlaygroundTabbedTileProps> = ({
 }) => {
   const contentPadding = 4;
   const [activeTab, setActiveTab] = useState(initialTab);
-  if (activeTab >= tabs.length) {
+  if (tabs.length === 0) {
     return null;
   }
+  // The tab list shrinks when outputs are toggled off, so clamp rather than
+  // dropping the whole tile when the remembered index falls out of range.
+  const currentTab = Math.min(activeTab, tabs.length - 1);
   return (
     <div
       className={`flex flex-col h-full border rounded-sm border-gray-800 text-gray-500 bg-${backgroundColor} ${className}`}
@@ -83,7 +86,7 @@ export const PlaygroundTabbedTile: React.FC<PlaygroundTabbedTileProps> = ({
           <button
             key={index}
             className={`px-4 py-2 rounded-sm hover:bg-gray-800 hover:text-gray-300 border-r border-r-gray-800 ${
-              index === activeTab
+              index === currentTab
                 ? `bg-gray-900 text-gray-300`
                 : `bg-transparent text-gray-500`
             }`}
@@ -100,7 +103,7 @@ export const PlaygroundTabbedTile: React.FC<PlaygroundTabbedTileProps> = ({
           padding: `${contentPadding * 4}px`,
         }}
       >
-        {tabs[activeTab].content}
+        {tabs[currentTab].content}
       </div>
     </div>
   );
