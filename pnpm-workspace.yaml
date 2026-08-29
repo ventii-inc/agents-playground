@@ -1,0 +1,11 @@
+# Firebase App Hosting builds with a pnpm version that refuses to run
+# dependency build scripts unless they are explicitly approved, failing the
+# build with ERR_PNPM_IGNORED_BUILDS. These compile native binaries and need
+# their install scripts to run:
+#   sharp         - Next.js image optimization
+#   esbuild       - bundler used by tooling
+#   unrs-resolver - ESLint import resolver
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
