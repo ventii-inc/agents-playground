@@ -180,15 +180,12 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
     }
     const cookieSettigs = await getSettingsFromCookies();
     const urlSettings = getSettingsFromUrl();
-    if (!cookieSettigs) {
-      if (urlSettings) {
-        setCookieSettings(urlSettings);
-      }
-    }
-    if (!urlSettings) {
-      if (cookieSettigs) {
-        setUrlSettings(cookieSettigs);
-      }
+    if (urlSettings) {
+      // Settings in the URL are explicit and shareable, so they win over
+      // whatever this browser happens to have saved.
+      setCookieSettings(urlSettings);
+    } else if (cookieSettigs) {
+      setUrlSettings(cookieSettigs);
     }
     const newCookieSettings = await getSettingsFromCookies();
     if (!newCookieSettings) {
