@@ -1,0 +1,33 @@
+runConfig:
+  runtime: nodejs20
+  concurrency: 80
+
+env:
+  # Public env vars (bundled into client at build time)
+  - variable: NEXT_PUBLIC_LIVEKIT_URL
+    value: wss://dev-i7ox1f30.livekit.cloud
+  - variable: NEXT_PUBLIC_RECEIVER_JITTER_BUFFER_MS
+    value: "625"
+  - variable: NEXT_PUBLIC_APP_CONFIG
+    value: |
+      title: 'Ventii Avatar Playground'
+      description: 'Avatar debugging playground with video recording.'
+      video_fit: 'contain'
+      settings:
+        editable: true
+        theme_color: 'cyan'
+        chat: true
+        agent: 'digital-human'
+        outputs:
+          audio: false
+          video: true
+        inputs:
+          mic: true
+          camera: false
+          sip: false
+
+  # Server-side secrets (injected at runtime, never exposed to client)
+  - variable: LIVEKIT_API_KEY
+    secret: LIVEKIT_API_KEY
+  - variable: LIVEKIT_API_SECRET
+    secret: LIVEKIT_API_SECRET

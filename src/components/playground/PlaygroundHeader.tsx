@@ -13,6 +13,15 @@ type PlaygroundHeader = {
   accentColor: string;
   connectionState: ConnectionState;
   onConnectClicked: () => void;
+  isRecording?: boolean;
+  recordingDuration?: number;
+  onRecordClicked?: () => void;
+};
+
+const formatDuration = (seconds: number) => {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
 };
 
 export const PlaygroundHeader = ({
@@ -23,6 +32,9 @@ export const PlaygroundHeader = ({
   height,
   onConnectClicked,
   connectionState,
+  isRecording,
+  recordingDuration,
+  onRecordClicked,
 }: PlaygroundHeader) => {
   const { config } = useConfig();
   return (
@@ -51,6 +63,25 @@ export const PlaygroundHeader = ({
           </a>
         )}
         {config.settings.editable && <SettingsDropdown />}
+        {connectionState === ConnectionState.Connected && onRecordClicked && (
+          <Button
+            accentColor={isRecording ? "red" : accentColor}
+            onClick={onRecordClicked}
+            className="flex items-center gap-1.5"
+          >
+            {isRecording ? (
+              <>
+                <span className="w-2 h-2 bg-red-200 rounded-full animate-pulse" />
+                <span>Stop {formatDuration(recordingDuration ?? 0)}</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 bg-current rounded-full" />
+                <span>Record</span>
+              </>
+            )}
+          </Button>
+        )}
         <Button
           accentColor={
             connectionState === ConnectionState.Connected ? "red" : accentColor

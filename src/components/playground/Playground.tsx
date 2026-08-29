@@ -2,7 +2,6 @@
 
 import { LoadingSVG } from "@/components/button/LoadingSVG";
 import { ChatTile } from "@/components/chat/ChatTile";
-import { ColorPicker } from "@/components/colorPicker/ColorPicker";
 import { AttributesInspector } from "@/components/config/AttributesInspector";
 import { AudioInputTile } from "@/components/config/AudioInputTile";
 import { ConfigurationPanelItem } from "@/components/config/ConfigurationPanelItem";
@@ -19,8 +18,8 @@ import {
 } from "@/components/playground/PlaygroundTile";
 import { useRemoteSession } from "@/hooks/useRemoteSession";
 import { useConfig } from "@/hooks/useConfig";
+import { useReceiverJitterBuffer } from "@/hooks/useReceiverJitterBuffer";
 import { useUplinkLatency } from "@/hooks/useUplinkLatency";
-import { AttributeItem } from "@/lib/types";
 import { PartialMessage } from "@bufbuild/protobuf";
 import {
   BarVisualizer,
@@ -42,6 +41,7 @@ import {
 import { RoomAgentDispatch } from "livekit-server-sdk";
 import { QRCodeSVG } from "qrcode.react";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { useRecording } from "@/hooks/useRecording";
 import tailwindTheme from "../../lib/tailwindTheme.preval";
 import { RpcPanel } from "./RpcPanel";
 
@@ -62,12 +62,11 @@ const headerHeight = 56;
 
 export default function Playground({
   logo,
-  themeColors,
   tokenSource,
   agentOptions: initialAgentOptions,
   autoConnect,
 }: PlaygroundProps) {
-  const { config, setUserSettings } = useConfig();
+  const { config } = useConfig();
 
   const [rpcMethod, setRpcMethod] = useState("");
   const [rpcPayload, setRpcPayload] = useState("");
@@ -75,12 +74,6 @@ export default function Playground({
 
   const [tokenFetchOptions, setTokenFetchOptions] =
     useState<TokenSourceFetchOptions>();
-
-  // Store attributes as an array with stable IDs to prevent disappearing while editing
-  // Initialize with one empty attribute so the inspector isn't empty on first open
-  const [attributeItems, setAttributeItems] = useState<AttributeItem[]>([
-    { id: `attr_initial_${Date.now()}`, key: "", value: "" },
-  ]);
 
   // initialize token fetch options from initial values, which can come from config
   useEffect(() => {
@@ -99,6 +92,7 @@ export default function Playground({
   ]);
 
   const session = useSession(tokenSource, tokenFetchOptions);
+  useReceiverJitterBuffer(session.room);
   const { connectionState } = session;
   const agent = useAgent(session);
   const messages = useSessionMessages(session);
@@ -117,6 +111,9 @@ export default function Playground({
     agent.internal.agentParticipant?.identity,
     sendRequest,
   );
+
+  const { isRecording, duration: recordingDuration, toggleRecording, stopRecording } =
+    useRecording(agent.cameraTrack, agent.microphoneTrack);
 
   const localScreenTrack = session.room.localParticipant.getTrackPublication(
     Track.Source.ScreenShare,
@@ -141,13 +138,11 @@ export default function Playground({
       session.room.localParticipant.setCameraEnabled(
         config.settings.inputs.camera,
       );
-      session.room.localParticipant.setMicrophoneEnabled(
-        config.settings.inputs.mic,
-      );
+      // Always start with mic muted — user can unmute manually
+      session.room.localParticipant.setMicrophoneEnabled(false);
     }
   }, [
     config.settings.inputs.camera,
-    config.settings.inputs.mic,
     session.room.localParticipant,
     connectionState,
   ]);
@@ -155,8 +150,9 @@ export default function Playground({
   useEffect(() => {
     if (connectionState === ConnectionState.Disconnected) {
       clearEvents();
+      stopRecording();
     }
-  }, [connectionState, clearEvents]);
+  }, [connectionState, clearEvents, stopRecording]);
 
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 
@@ -305,40 +301,48 @@ export default function Playground({
     agent.internal.agentParticipant,
   ]);
 
-  const handleAttributesChange = useCallback(
-    (newAttributes: AttributeItem[]) => {
-      // Store the full array with stable IDs to preserve attributes during editing
-      setAttributeItems(newAttributes);
-
-      // Convert to map for tokenFetchOptions, but only include non-empty keys
-      // Duplicates are handled by keeping the last occurrence (later values overwrite earlier ones)
-      const newAttributesMap = newAttributes.reduce(
-        (acc, attr) => {
-          if (attr.key && attr.key.trim() !== "") {
-            acc[attr.key] = attr.value;
-          }
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
-      setTokenFetchOptions((prev) => ({
-        ...prev,
-        participantAttributes: newAttributesMap,
-      }));
-    },
-    [],
-  );
-
-  const agentAttributes = useParticipantAttributes({
+const agentAttributes = useParticipantAttributes({
     participant: agent.internal.agentParticipant ?? undefined,
   });
+
+  const quickInputs = useMemo(
+    () => [
+      "tell me a poem",
+      "whats the capital of france",
+      "one more",
+      "say again",
+      "count 1 to 5",
+    ],
+    [],
+  );
 
   const settingsTileContent = useMemo(() => {
     return (
       <div className="flex flex-col h-full w-full items-start overflow-y-auto">
-        {config.description && (
-          <ConfigurationPanelItem title="Description">
-            {config.description}
+        {config.settings.inputs.mic && (
+          <ConfigurationPanelItem
+            title="Microphone"
+            source={Track.Source.Microphone}
+          >
+            {session.local.microphoneTrack ? (
+              <AudioInputTile trackRef={session.local.microphoneTrack} />
+            ) : null}
+          </ConfigurationPanelItem>
+        )}
+
+        {agent.isConnected && (
+          <ConfigurationPanelItem title="Quick Input">
+            <div className="flex flex-row flex-wrap gap-2">
+              {quickInputs.map((text) => (
+                <button
+                  key={text}
+                  onClick={() => messages.send(text)}
+                  className={`text-xs px-2 py-1 rounded-sm border border-gray-800 bg-gray-900 text-${config.settings.theme_color}-500 hover:bg-${config.settings.theme_color}-950 hover:border-${config.settings.theme_color}-700 transition-colors`}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
           </ConfigurationPanelItem>
         )}
 
@@ -434,59 +438,6 @@ export default function Playground({
           </div>
         </ConfigurationPanelItem>
 
-        <ConfigurationPanelItem title="User">
-          <div className="flex flex-col gap-2">
-            <EditableNameValueRow
-              name="Name"
-              value={
-                connectionState === ConnectionState.Connected
-                  ? session.room.localParticipant.name || ""
-                  : (tokenFetchOptions?.participantName ?? "")
-              }
-              valueColor={`${config.settings.theme_color}-500`}
-              onValueChange={(value) => {
-                setTokenFetchOptions({
-                  ...tokenFetchOptions,
-                  participantName: value,
-                });
-              }}
-              placeholder="Auto"
-              editable={connectionState !== ConnectionState.Connected}
-            />
-            <EditableNameValueRow
-              name="Identity"
-              value={
-                connectionState === ConnectionState.Connected
-                  ? session.room.localParticipant.identity
-                  : (tokenFetchOptions?.participantIdentity ?? "")
-              }
-              valueColor={`${config.settings.theme_color}-500`}
-              onValueChange={(value) => {
-                setTokenFetchOptions({
-                  ...tokenFetchOptions,
-                  participantIdentity: value,
-                });
-              }}
-              placeholder="Auto"
-              editable={connectionState !== ConnectionState.Connected}
-            />
-            <AttributesInspector
-              attributes={attributeItems}
-              onAttributesChange={handleAttributesChange}
-              metadata={tokenFetchOptions?.participantMetadata}
-              onMetadataChange={(metadata) => {
-                setTokenFetchOptions((prev) => ({
-                  ...prev,
-                  participantMetadata: metadata,
-                }));
-              }}
-              themeColor={config.settings.theme_color}
-              disabled={false}
-              connectionState={connectionState}
-            />
-          </div>
-        </ConfigurationPanelItem>
-
         {connectionState === ConnectionState.Connected &&
           config.settings.inputs.screen && (
             <ConfigurationPanelItem
@@ -537,29 +488,6 @@ export default function Playground({
             ) : null}
           </ConfigurationPanelItem>
         )}
-        {config.settings.inputs.mic && (
-          <ConfigurationPanelItem
-            title="Microphone"
-            source={Track.Source.Microphone}
-          >
-            {session.local.microphoneTrack ? (
-              <AudioInputTile trackRef={session.local.microphoneTrack} />
-            ) : null}
-          </ConfigurationPanelItem>
-        )}
-        <div className="w-full">
-          <ConfigurationPanelItem title="Color">
-            <ColorPicker
-              colors={themeColors}
-              selectedColor={config.settings.theme_color}
-              onSelect={(color) => {
-                const userSettings = { ...config.settings };
-                userSettings.theme_color = color;
-                setUserSettings(userSettings);
-              }}
-            />
-          </ConfigurationPanelItem>
-        </div>
         {config.show_qr && (
           <div className="w-full">
             <ConfigurationPanelItem title="QR Code">
@@ -573,22 +501,19 @@ export default function Playground({
     config,
     agent.isConnected,
     agentAttributes.attributes,
-    session.room.localParticipant,
     session.room.name,
     connectionState,
     session.local.cameraTrack,
     localScreenTrack,
     session.local.microphoneTrack,
-    themeColors,
-    setUserSettings,
     agent.internal.agentParticipant,
     rpcMethod,
     rpcPayload,
     handleRpcCall,
-    handleAttributesChange,
-    attributeItems,
     tokenFetchOptions,
     setTokenFetchOptions,
+    quickInputs,
+    messages,
   ]);
 
   let mobileTabs: PlaygroundTab[] = [];
@@ -658,6 +583,9 @@ export default function Playground({
           height={headerHeight}
           accentColor={config.settings.theme_color}
           connectionState={connectionState}
+          isRecording={isRecording}
+          recordingDuration={recordingDuration}
+          onRecordClicked={toggleRecording}
           onConnectClicked={() => {
             if (connectionState === ConnectionState.Disconnected) {
               startSession();
