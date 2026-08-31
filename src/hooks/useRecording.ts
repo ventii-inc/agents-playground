@@ -3,6 +3,27 @@
 import { TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+/**
+ * MediaRecorder writes a live-streamable container, so it can never go back and
+ * patch the header once recording ends. For WebM that means no Duration and no
+ * Cues element — players show no length and cannot seek. Chrome's MP4 muxer
+ * emits a real `moov` with duration, so prefer MP4 and keep WebM as a fallback.
+ * H.264 + AAC first: Opus-in-MP4 will not open in QuickTime or Safari.
+ */
+const MIME_PREFERENCE = [
+  "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+  "video/mp4;codecs=avc1,opus",
+  "video/mp4",
+  "video/webm;codecs=vp9,opus",
+  "video/webm",
+];
+
+function pickMimeType(): string {
+  return (
+    MIME_PREFERENCE.find((t) => MediaRecorder.isTypeSupported(t)) ?? "video/webm"
+  );
+}
+
 export function useRecording(
   videoTrack?: TrackReferenceOrPlaceholder,
   audioTrack?: TrackReferenceOrPlaceholder,
@@ -56,9 +77,7 @@ export function useRecording(
       ...destRef.current.stream.getAudioTracks(),
     ]);
 
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
-      ? "video/webm;codecs=vp9,opus"
-      : "video/webm";
+    const mimeType = pickMimeType();
 
     const recorder = new MediaRecorder(stream, { mimeType });
     chunksRef.current = [];
@@ -88,7 +107,8 @@ export function useRecording(
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `avatar-recording-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
+      const ext = mimeType.startsWith("video/mp4") ? "mp4" : "webm";
+      a.download = `avatar-recording-${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

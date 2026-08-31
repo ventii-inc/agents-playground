@@ -20,6 +20,7 @@ import * as dotenv from "dotenv";
 import { chromium } from "playwright";
 import * as fs from "fs";
 import * as path from "path";
+import { spawnSync } from "child_process";
 
 dotenv.config({ path: path.join(__dirname, "..", ".env.local") });
 
@@ -123,14 +124,54 @@ async function main() {
       process.exit(1);
     }
 
-    // A webm file starts with the EBML magic bytes 0x1A45DFA3.
-    const head = fs.readFileSync(filePath).subarray(0, 4);
-    if (head.toString("hex") !== "1a45dfa3") {
-      console.error(`\n❌ FAIL: Not a valid webm container (magic ${head.toString("hex")}).`);
+    // Validate the container: MP4 has "ftyp" at offset 4, WebM the EBML magic.
+    const head = fs.readFileSync(filePath).subarray(0, 12);
+    const isMp4 = head.subarray(4, 8).toString("latin1") === "ftyp";
+    const isWebm = head.subarray(0, 4).toString("hex") === "1a45dfa3";
+    if (!isMp4 && !isWebm) {
+      console.error(`\n❌ FAIL: Not a valid mp4 or webm container (head ${head.toString("hex")}).`);
       process.exit(1);
     }
+    console.log(`       Container: ${isMp4 ? "mp4" : "webm"}`);
 
-    console.log(`\n✅ PASS: Record button produced a valid ${(size / 1024 / 1024).toFixed(2)} MB webm.`);
+    // The recording must carry a duration, or players show no length and cannot
+    // seek. This is the regression guard for MediaRecorder's headerless WebM.
+    const probe = spawnSync("ffprobe", [
+      "-v", "error",
+      "-show_entries", "format=duration",
+      "-show_entries", "stream=codec_name,codec_type",
+      "-of", "default=noprint_wrappers=1",
+      filePath,
+    ], { encoding: "utf8" });
+
+    if (probe.error) {
+      console.warn("\n⚠️  ffprobe not available — skipping duration/seek checks.");
+    } else {
+      const out = probe.stdout.trim();
+      out.split("\n").forEach((l) => console.log(`       ${l}`));
+
+      const durMatch = out.match(/^duration=([\d.]+)$/m);
+      if (!durMatch || parseFloat(durMatch[1]) <= 0) {
+        console.error(`\n❌ FAIL: Recording has no readable duration — players cannot seek it.`);
+        process.exit(1);
+      }
+      const seconds = parseFloat(durMatch[1]);
+
+      // Seek to the back half and decode a frame, proving the file is indexed.
+      const seekTo = Math.max(1, seconds * 0.6).toFixed(2);
+      const seek = spawnSync("ffmpeg", [
+        "-v", "error", "-ss", seekTo, "-i", filePath,
+        "-frames:v", "1", "-f", "image2", "-y", "/dev/null",
+      ], { encoding: "utf8" });
+
+      if (seek.status !== 0) {
+        console.error(`\n❌ FAIL: Could not seek to ${seekTo}s. ${seek.stderr.trim()}`);
+        process.exit(1);
+      }
+      console.log(`       Duration ${seconds.toFixed(2)}s, seek to ${seekTo}s OK.`);
+    }
+
+    console.log(`\n✅ PASS: Record button produced a valid, seekable ${(size / 1024 / 1024).toFixed(2)} MB recording.`);
   } finally {
     if (consoleErrors.length > 0) {
       console.log("\nBrowser console errors:");
