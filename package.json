@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write .",
-    "test:avatar": "tsx scripts/test-avatar.ts"
+    "test:avatar": "tsx scripts/test-avatar.ts",
+    "test:record": "tsx scripts/test-record-button.ts",
+    "test:video": "tsx scripts/test-video-recording.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.1",

@@ -12,43 +12,49 @@ export function useRecording(
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  // Audio is mixed through a WebAudio destination node so the recorded
+  // MediaStream's track set never changes — mutating it would make the
+  // MediaRecorder stop immediately and emit an empty file.
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const destRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
-  // Sync audio track into the active recording stream when it becomes available
+  const connectAudio = useCallback((msTrack?: MediaStreamTrack) => {
+    const ctx = audioCtxRef.current;
+    const dest = destRef.current;
+    if (!ctx || !dest) return;
+
+    sourceRef.current?.disconnect();
+    sourceRef.current = null;
+
+    if (!msTrack) return;
+    const source = ctx.createMediaStreamSource(new MediaStream([msTrack]));
+    source.connect(dest);
+    sourceRef.current = source;
+  }, []);
+
+  // Swap the agent's audio into the mix when it becomes available or changes
   useEffect(() => {
-    const stream = streamRef.current;
-    if (!stream || !isRecording) return;
-
-    const audioMSTrack = audioTrack?.publication?.track?.mediaStreamTrack;
-
-    // Remove any stale audio tracks
-    for (const t of stream.getAudioTracks()) {
-      stream.removeTrack(t);
-    }
-
-    // Add the current audio track if available
-    if (audioMSTrack) {
-      stream.addTrack(audioMSTrack);
-    }
-  }, [audioTrack?.publication?.track?.mediaStreamTrack, isRecording]);
+    if (!isRecording) return;
+    connectAudio(audioTrack?.publication?.track?.mediaStreamTrack);
+  }, [audioTrack?.publication?.track?.mediaStreamTrack, isRecording, connectAudio]);
 
   const startRecording = useCallback(() => {
-    const stream = new MediaStream();
-
     const videoMSTrack = videoTrack?.publication?.track?.mediaStreamTrack;
-    const audioMSTrack = audioTrack?.publication?.track?.mediaStreamTrack;
-
     if (!videoMSTrack) {
       console.warn("No video track available to record");
       return;
     }
 
-    stream.addTrack(videoMSTrack);
-    if (audioMSTrack) {
-      stream.addTrack(audioMSTrack);
-    }
+    const ctx = new AudioContext();
+    audioCtxRef.current = ctx;
+    destRef.current = ctx.createMediaStreamDestination();
+    connectAudio(audioTrack?.publication?.track?.mediaStreamTrack);
 
-    streamRef.current = stream;
+    const stream = new MediaStream([
+      videoMSTrack,
+      ...destRef.current.stream.getAudioTracks(),
+    ]);
 
     const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
       ? "video/webm;codecs=vp9,opus"
@@ -64,7 +70,21 @@ export function useRecording(
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const chunks = chunksRef.current;
+      chunksRef.current = [];
+
+      sourceRef.current?.disconnect();
+      sourceRef.current = null;
+      destRef.current = null;
+      audioCtxRef.current?.close();
+      audioCtxRef.current = null;
+
+      if (chunks.length === 0) {
+        console.warn("Recording produced no data — nothing to download");
+        return;
+      }
+
+      const blob = new Blob(chunks, { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -73,7 +93,6 @@ export function useRecording(
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      chunksRef.current = [];
     };
 
     recorder.start(1000); // collect data every second
@@ -84,14 +103,13 @@ export function useRecording(
     timerRef.current = setInterval(() => {
       setDuration((d) => d + 1);
     }, 1000);
-  }, [videoTrack, audioTrack]);
+  }, [videoTrack, audioTrack, connectAudio]);
 
   const stopRecording = useCallback(() => {
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
-      recorderRef.current.stop();
+      recorderRef.current.stop(); // onstop flushes the file and tears down audio
     }
     recorderRef.current = null;
-    streamRef.current = null;
     setIsRecording(false);
 
     if (timerRef.current) {
