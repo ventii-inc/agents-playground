@@ -92,7 +92,10 @@ export default function Playground({
   ]);
 
   const session = useSession(tokenSource, tokenFetchOptions);
-  useReceiverJitterBuffer(session.room);
+  useReceiverJitterBuffer(
+    session.room,
+    tokenFetchOptions?.agentName ?? initialAgentOptions?.agentName,
+  );
   const { connectionState } = session;
   const agent = useAgent(session);
   const messages = useSessionMessages(session);

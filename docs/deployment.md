@@ -12,37 +12,34 @@ and serves the Next.js app on Cloud Run.
 | **Backend** | `agent-playground` |
 | **Region** | `asia-east1` |
 | **Repository** | `ventii-inc/agents-playground` |
-| **Tracked branch** | `feature/video-recording` |
+| **Tracked branch** | `main` |
 | **Root directory** | `/` |
 | **Console** | https://console.firebase.google.com/project/video-clone-504ba/apphosting |
 
-> The backend tracks `feature/video-recording`, **not** `main`. `main` is still at
-> upstream LiveKit's code and does not contain this fork's changes or
-> [`apphosting.yaml`](../apphosting.yaml). Retarget the branch in the console if
-> that changes.
+The GitHub App Hosting integration rolls out commits from `main`. Verified on
+2026-10-02 against the successful Firebase rollout check for `64c4b57` (the
+latest deployed frontend commit before the receiver-timing change). The older
+`feature/video-recording` branch is no longer the deployment baseline.
 
 The project also hosts an unrelated `clone-video` backend. Leave it alone.
 
 ## Deploying
 
-Requires the Firebase CLI, authenticated as a user with access to the project.
+Create and validate a pull request into `main`. Merging it triggers the GitHub
+App Hosting integration. Confirm the `App Hosting - Rollout` check succeeds on
+the merged commit before reporting deployment complete, then verify the served
+bundle and a real session.
+
+For a manual rollout, the Firebase CLI requires a current login:
 
 ```bash
-firebase login
+firebase login --reauth
+firebase apphosting:rollouts:create agent-playground --project video-clone-504ba --git-commit <reviewed-sha>
 ```
 
-Push your work to the tracked branch first — App Hosting builds from GitHub, not
-from your working tree:
-
-```bash
-git push origin feature/video-recording
-```
-
-Then trigger a rollout:
-
-```bash
-firebase apphosting:rollouts:create agent-playground --project video-clone-504ba --git-branch feature/video-recording
-```
+Use a specific reviewed commit for a manual rollout. App Hosting builds from
+GitHub, not from the local working tree. An expired CLI login does not disable
+the existing GitHub integration.
 
 Verify it serves, and that runtime secrets resolved:
 
