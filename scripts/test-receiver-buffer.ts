@@ -8,8 +8,9 @@ import {
 
 const reviewedAgent = "digital-human-expression-refinement-dev";
 
-test("the reviewed target is isolated from production and other agents", () => {
+test("audio and video use the configured target for dev and other agents", () => {
   for (const agent of [
+    reviewedAgent,
     undefined,
     "",
     "digital-human",
@@ -20,8 +21,6 @@ test("the reviewed target is isolated from production and other agents", () => {
       assert.equal(receiverTargetMs(kind, agent, 240), 240);
     }
   }
-  assert.equal(receiverTargetMs("audio", reviewedAgent, 625), 0);
-  assert.equal(receiverTargetMs("video", reviewedAgent, 625), 80);
 });
 
 test("zero resets an existing audio target and both supported APIs agree", () => {
@@ -36,9 +35,9 @@ test("zero resets an existing audio target and both supported APIs agree", () =>
   applyReceiverJitterBuffer(track, 0);
   assert.equal(receiver.jitterBufferTarget, 0);
   assert.equal(delay, 0);
-  applyReceiverJitterBuffer(track, 80);
-  assert.equal(receiver.jitterBufferTarget, 80);
-  assert.equal(delay, 0.08);
+  applyReceiverJitterBuffer(track, 625);
+  assert.equal(receiver.jitterBufferTarget, 625);
+  assert.equal(delay, 0.625);
 });
 
 test("unsupported receiver properties and hints do not break connection", () => {

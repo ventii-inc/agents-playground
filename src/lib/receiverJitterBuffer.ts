@@ -1,15 +1,12 @@
 import type { RemoteTrack } from "livekit-client";
 
-const REVIEWED_DEV_AGENT = "digital-human-expression-refinement-dev";
-
 export function receiverTargetMs(
-  kind: string,
-  agentName: string | undefined,
+  _kind: string,
+  _agentName: string | undefined,
   defaultTargetMs: number,
 ): number {
-  if (agentName === REVIEWED_DEV_AGENT) {
-    return kind === "video" ? 80 : 0;
-  }
+  // Keep audio and video on the configured target for every agent.
+  // The former dev-only 80/0 ms override left too little delivery margin.
   return defaultTargetMs;
 }
 
@@ -21,8 +18,7 @@ export function applyReceiverJitterBuffer(
     return;
   }
 
-  // Zero is intentional: the reviewed dev setting resets audio's previous
-  // target instead of leaving the shared playground default in effect.
+  // Apply zero explicitly too, so configuration changes reset older targets.
   try {
     track.receiver.jitterBufferTarget = targetMs;
   } catch {
