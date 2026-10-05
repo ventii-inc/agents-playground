@@ -21,7 +21,9 @@ test("the reviewed target is isolated from production and other agents", () => {
     }
   }
   assert.equal(receiverTargetMs("audio", reviewedAgent, 625), 0);
-  assert.equal(receiverTargetMs("video", reviewedAgent, 625), 80);
+  assert.equal(receiverTargetMs("video", reviewedAgent, 625), 625);
+  assert.equal(receiverTargetMs("video", reviewedAgent, 350), 350);
+  assert.equal(receiverTargetMs("audio", reviewedAgent, 350), 0);
 });
 
 test("zero resets an existing audio target and both supported APIs agree", () => {
