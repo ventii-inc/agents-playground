@@ -1,13 +1,16 @@
 import type { RemoteTrack } from "livekit-client";
 
-const REVIEWED_DEV_AGENT = "digital-human-expression-refinement-dev";
+const REVIEWED_DEV_AGENTS = new Set([
+  "digital-human-expression-refinement-dev",
+  "digital-human-serverless-test",
+]);
 
 export function receiverTargetMs(
   kind: string,
   agentName: string | undefined,
   defaultTargetMs: number,
 ): number {
-  if (agentName === REVIEWED_DEV_AGENT) {
+  if (agentName && REVIEWED_DEV_AGENTS.has(agentName)) {
     return kind === "video" ? defaultTargetMs : 0;
   }
   return defaultTargetMs;

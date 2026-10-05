@@ -23,3 +23,6 @@ source/receiver evidence is recorded with the paired LiveKit release.
 
 Rollback the scoped mapping to video80/audio0 and deploy the revision. GPU and
 voice settings do not need to change for this frontend rollback.
+
+The isolated `digital-human-serverless-test` agent uses the same reviewed
+video-only policy, so the internal serverless admin can reuse this playground.
