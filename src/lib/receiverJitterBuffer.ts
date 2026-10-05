@@ -8,7 +8,7 @@ export function receiverTargetMs(
   defaultTargetMs: number,
 ): number {
   if (agentName === REVIEWED_DEV_AGENT) {
-    return kind === "video" ? 80 : 0;
+    return kind === "video" ? defaultTargetMs : 0;
   }
   return defaultTargetMs;
 }
