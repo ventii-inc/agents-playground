@@ -12,6 +12,9 @@ export type IncidentReason = typeof INCIDENT_REASONS[number];
 export type IncidentSample = {
   monotonicMs: number;
   capturedAt: string;
+  visibility?: "visible" | "hidden" | "unknown";
+  videoVisible?: boolean;
+  videoPlaying?: boolean;
   video?: Record<string, number>;
   audio?: Record<string, number>;
 };
@@ -54,7 +57,7 @@ const INCIDENT_FIELDS = new Set([
   "browser", "visibility", "likelyCause", "watchdogDurationMs", "serverClockOffsetMs", "longTaskCount",
   "longTaskTotalDurationMs", "longTaskMaxDurationMs", "samples",
 ]);
-const SAMPLE_FIELDS = new Set(["monotonicMs", "capturedAt", "video", "audio"]);
+const SAMPLE_FIELDS = new Set(["monotonicMs", "capturedAt", "visibility", "videoVisible", "videoPlaying", "video", "audio"]);
 
 function object(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
@@ -91,6 +94,9 @@ function metrics(value: unknown, allowed: Set<string>): value is Record<string, 
 function sample(value: unknown): value is IncidentSample {
   const candidate = object(value);
   if (!candidate || !exactFields(candidate, SAMPLE_FIELDS) || !boundedNumber(candidate.monotonicMs) || !utc(candidate.capturedAt)) return false;
+  if (candidate.visibility !== undefined && !VISIBILITIES.includes(candidate.visibility as typeof VISIBILITIES[number])) return false;
+  if (candidate.videoVisible !== undefined && typeof candidate.videoVisible !== "boolean") return false;
+  if (candidate.videoPlaying !== undefined && typeof candidate.videoPlaying !== "boolean") return false;
   if (candidate.video !== undefined && !metrics(candidate.video, VIDEO_METRICS)) return false;
   return (candidate.video !== undefined || candidate.audio !== undefined) &&
     (candidate.audio === undefined || metrics(candidate.audio, AUDIO_METRICS));
