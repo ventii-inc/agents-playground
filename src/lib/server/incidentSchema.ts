@@ -1,3 +1,5 @@
+import { VIDEO_METRIC_KEYS, AUDIO_METRIC_KEYS } from "../incidentMetrics";
+
 export const INCIDENT_REASONS = ["manual", "video_watchdog", "rtc_freeze", "audio_concealment"] as const;
 export const BROWSERS = ["chrome", "safari", "firefox", "edge", "other"] as const;
 export const VISIBILITIES = ["visible", "hidden", "unknown"] as const;
@@ -40,18 +42,8 @@ export type FreezeIncident = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ROOM = /^[^\u0000-\u001f\u007f]{1,256}$/;
-const VIDEO_METRICS = new Set([
-  "packetsReceived", "packetsLost", "bytesReceived", "jitter", "jitterBufferDelay",
-  "jitterBufferEmittedCount", "framesDecoded", "framesReceived", "framesDropped",
-  "framesPerSecond", "freezeCount", "totalFreezesDuration", "keyFramesDecoded", "nackCount", "pliCount",
-  "totalDecodeTime", "totalProcessingDelay", "presentedFrames", "displayFrameGapMs", "roundTripTime",
-]);
-const AUDIO_METRICS = new Set([
-  "packetsReceived", "packetsLost", "bytesReceived", "jitter", "jitterBufferDelay",
-  "jitterBufferEmittedCount", "concealedSamples", "silentConcealedSamples", "concealmentEvents",
-  "totalSamplesReceived", "insertedSamplesForDeceleration", "removedSamplesForAcceleration", "totalAudioEnergy",
-  "roundTripTime",
-]);
+const VIDEO_METRICS = new Set<string>(VIDEO_METRIC_KEYS);
+const AUDIO_METRICS = new Set<string>(AUDIO_METRIC_KEYS);
 const INCIDENT_FIELDS = new Set([
   "schemaVersion", "id", "room", "reason", "occurredAt", "monotonicMs", "trackGeneration", "trackReset",
   "browser", "visibility", "likelyCause", "watchdogDurationMs", "serverClockOffsetMs", "longTaskCount",
