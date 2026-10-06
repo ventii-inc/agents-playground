@@ -92,3 +92,11 @@ pnpm run dev
 </tbody>
 </table>
 <!--END_REPO_NAV-->
+
+### Start the microphone from an explicit redirect
+
+Add `mic=1&mic_unmuted=1` to the URL fragment to request an unmuted microphone
+when the user connects. Browser microphone permission is still required. The
+flag is not stored in settings cookies; ordinary links retain the muted default.
+Manual mute is preserved across rerenders and transport reconnects. `audio=0`
+hides the agent audio visualization without muting speech playback.

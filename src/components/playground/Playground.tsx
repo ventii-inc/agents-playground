@@ -1,5 +1,7 @@
 "use client";
 
+import { createMicrophoneStartup, microphoneStartsEnabled } from "@/lib/microphoneStartup";
+import { useToast } from "@/components/toast/ToasterProvider";
 import { LoadingSVG } from "@/components/button/LoadingSVG";
 import { ChatTile } from "@/components/chat/ChatTile";
 import { AttributesInspector } from "@/components/config/AttributesInspector";
@@ -67,6 +69,10 @@ export default function Playground({
   autoConnect,
 }: PlaygroundProps) {
   const { config } = useConfig();
+  const { setToastMessage } = useToast();
+  const [startMicUnmuted] = useState(() =>
+    typeof window !== "undefined" && microphoneStartsEnabled(window.location.hash),
+  );
 
   const [rpcMethod, setRpcMethod] = useState("");
   const [rpcPayload, setRpcPayload] = useState("");
@@ -141,14 +147,29 @@ export default function Playground({
       session.room.localParticipant.setCameraEnabled(
         config.settings.inputs.camera,
       );
-      // Always start with mic muted — user can unmute manually
-      session.room.localParticipant.setMicrophoneEnabled(false);
     }
   }, [
     config.settings.inputs.camera,
     session.room.localParticipant,
     connectionState,
   ]);
+
+  // Apply once per connection, so rerenders, camera changes and transport
+  // reconnects cannot undo a user's subsequent manual mute.
+  const applyMicrophoneStartup = useMemo(
+    () => createMicrophoneStartup(startMicUnmuted, (enabled) =>
+      session.room.localParticipant.setMicrophoneEnabled(enabled),
+    ),
+    [session.room.localParticipant, startMicUnmuted],
+  );
+  useEffect(() => {
+    void applyMicrophoneStartup(connectionState).catch(() => {
+      setToastMessage({
+        type: "error",
+        message: "Could not enable the microphone. Allow microphone access in your browser, then use the mic button to try again.",
+      });
+    });
+  }, [applyMicrophoneStartup, connectionState, setToastMessage]);
 
   useEffect(() => {
     if (connectionState === ConnectionState.Disconnected) {
