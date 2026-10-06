@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { DetectorInput, FreezeDetector } from "../src/lib/freezeDetector";
+import { DetectorInput, FreezeDetector, readInboundReceiverStats } from "../src/lib/freezeDetector";
 import { parseIncident } from "../src/lib/server/incidentSchema";
 
 const start = 10_000;
@@ -153,4 +153,17 @@ console.log("freeze detector tests passed");
   const report=detector.drainReady()[0];
   assert.equal(report.likelyCause,"unknown");
   assert.equal(report.samples.some(s=>s.visibility==='hidden'),true);
+}
+
+// Chrome audio processing counters must survive the shared collector/schema.
+{
+  const report=new Map([['audio',{type:'inbound-rtp',kind:'audio',totalProcessingDelay:0.12,nackCount:0,framesDecoded:99,packetsReceived:25}]]);
+  const stats=readInboundReceiverStats(report as unknown as RTCStatsReport,'audio');
+  assert.equal(stats?.totalProcessingDelay,0.12);
+  assert.equal(stats?.framesDecoded,undefined);
+  const detector=new FreezeDetector();
+  detector.ingest(sample(start,{audio:stats}));
+  detector.manual(sample(start+1000));detector.flushPending();
+  const generated={...detector.drainReady()[0],room:'schema-audio-check',browser:'chrome'};
+  assert.ok(parseIncident(generated));
 }

@@ -1,33 +1,12 @@
+import { VIDEO_METRIC_KEYS, AUDIO_METRIC_KEYS } from "./incidentMetrics";
+
 export type IncidentReason =
   | "manual"
   | "video_watchdog"
   | "rtc_freeze"
   | "audio_concealment";
 
-export type ReceiverStats = {
-  freezeCount?: number;
-  totalFreezesDuration?: number;
-  framesDecoded?: number;
-  framesReceived?: number;
-  framesPerSecond?: number;
-  bytesReceived?: number;
-  keyFramesDecoded?: number;
-  pliCount?: number;
-  framesDropped?: number;
-  presentedFrames?: number;
-  totalDecodeTime?: number;
-  totalProcessingDelay?: number;
-  roundTripTime?: number;
-  packetsLost?: number;
-  packetsReceived?: number;
-  jitterBufferDelay?: number;
-  jitterBufferEmittedCount?: number;
-  jitter?: number;
-  nackCount?: number;
-  concealedSamples?: number;
-  concealmentEvents?: number;
-  totalSamplesReceived?: number;
-};
+export type ReceiverStats = Partial<Record<typeof VIDEO_METRIC_KEYS[number] | typeof AUDIO_METRIC_KEYS[number], number>>;
 
 export type DetectorInput = {
   room?: string;
@@ -371,12 +350,7 @@ export function readInboundReceiverStats(
     if (stat.type === "inbound-rtp" && stat.kind === kind) selected = stat;
   });
   if (!selected) return undefined;
-  const allowed: Array<keyof ReceiverStats> = [
-    "freezeCount", "totalFreezesDuration", "framesDecoded", "framesReceived", "framesPerSecond", "bytesReceived", "keyFramesDecoded", "pliCount", "framesDropped", "presentedFrames",
-    "totalDecodeTime", "totalProcessingDelay", "roundTripTime",
-    "packetsLost", "packetsReceived", "jitterBufferDelay", "jitterBufferEmittedCount",
-    "jitter", "nackCount", "concealedSamples", "concealmentEvents", "totalSamplesReceived",
-  ];
+  const allowed = kind === "video" ? VIDEO_METRIC_KEYS : AUDIO_METRIC_KEYS;
   const stats: ReceiverStats = {};
   for (const key of allowed) {
     const value = finite(selected[key]);
