@@ -2,6 +2,7 @@ import { Button } from "@/components/button/Button";
 import { LoadingSVG } from "@/components/button/LoadingSVG";
 import { SettingsDropdown } from "@/components/playground/SettingsDropdown";
 import { useConfig } from "@/hooks/useConfig";
+import type { FreezeReportStatus } from "@/hooks/useFreezeDetector";
 import { ConnectionState } from "livekit-client";
 import { ReactNode } from "react";
 
@@ -16,6 +17,8 @@ type PlaygroundHeader = {
   isRecording?: boolean;
   recordingDuration?: number;
   onRecordClicked?: () => void;
+  onReportFreeze?: () => void;
+  freezeReportStatus?: FreezeReportStatus;
 };
 
 const formatDuration = (seconds: number) => {
@@ -35,24 +38,26 @@ export const PlaygroundHeader = ({
   isRecording,
   recordingDuration,
   onRecordClicked,
+  onReportFreeze,
+  freezeReportStatus,
 }: PlaygroundHeader) => {
   const { config } = useConfig();
   return (
     <div
-      className={`flex gap-4 pt-4 text-${accentColor}-500 justify-between items-center shrink-0`}
+      className={`relative flex gap-2 pt-4 text-${accentColor}-500 justify-between items-center shrink-0`}
       style={{
         height: height + "px",
       }}
     >
-      <div className="flex items-center gap-3 basis-2/3">
-        <div className="flex lg:basis-1/2">
+      <div className="flex items-center gap-3 grow min-w-0">
+        <div className="flex shrink-0 lg:basis-1/2">
           <a href="https://livekit.io">{logo ?? <LKLogo />}</a>
         </div>
-        <div className="lg:basis-1/2 lg:text-center text-xs lg:text-base lg:font-semibold text-white">
+        <div className="hidden lg:block lg:basis-1/2 lg:text-center lg:text-base lg:font-semibold text-white truncate">
           {title}
         </div>
       </div>
-      <div className="flex basis-1/3 justify-end items-center gap-2">
+      <div className="flex shrink-0 justify-end items-center gap-1 sm:gap-2">
         {githubLink && (
           <a
             href={githubLink}
@@ -81,6 +86,32 @@ export const PlaygroundHeader = ({
               </>
             )}
           </Button>
+        )}
+        {connectionState === ConnectionState.Connected && onReportFreeze && (
+          <Button
+            accentColor={accentColor}
+            onClick={onReportFreeze}
+            disabled={freezeReportStatus?.state === "saving"}
+            data-testid="report-freeze"
+            aria-label="Report freeze"
+            className="!px-2 sm:!px-3"
+          >
+            {freezeReportStatus?.state === "saving" ? (
+              "Saving…"
+            ) : (
+              <>
+                <span className="sm:hidden">Report</span>
+                <span className="hidden sm:inline">Report freeze</span>
+              </>
+            )}
+          </Button>
+        )}
+        {freezeReportStatus && freezeReportStatus.state !== "idle" && freezeReportStatus.state !== "saving" && (
+          <span data-testid="freeze-report-status" className="absolute right-0 top-full z-10 mt-1 rounded bg-gray-900 px-2 py-1 text-xs text-gray-300 max-w-56 truncate">
+            {freezeReportStatus.state === "saved"
+              ? `Saved report ${freezeReportStatus.id}`
+              : freezeReportStatus.message}
+          </span>
         )}
         <Button
           accentColor={

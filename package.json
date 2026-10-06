@@ -11,7 +11,8 @@
     "test:avatar": "tsx scripts/test-avatar.ts",
     "test:record": "tsx scripts/test-record-button.ts",
     "test:video": "tsx scripts/test-video-recording.ts",
-    "test:microphone": "node --import tsx --test scripts/test-microphone-startup.ts"
+    "test:microphone": "node --import tsx --test scripts/test-microphone-startup.ts",
+    "test:diagnostics": "node --import tsx --test scripts/test-freeze-detector.ts scripts/test-incidents.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.1",

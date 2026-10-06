@@ -4,6 +4,7 @@ import { TokenSourceRequestPayload } from "livekit-client";
 import { AccessToken } from "livekit-server-sdk";
 import { RoomConfiguration, RoomAgentDispatch } from "@livekit/protocol";
 import yaml from "js-yaml";
+import { diagnosticsCookie } from "@/lib/server/incidentAuth";
 
 const apiKey = process.env.LIVEKIT_API_KEY;
 const apiSecret = process.env.LIVEKIT_API_SECRET;
@@ -104,9 +105,13 @@ export default async function handleToken(
   console.log("[token] room_config:", JSON.stringify(options.room_config ?? null));
 
   try {
+    const participantToken = await createToken(options);
+    // This capability is room-scoped and can only mint bounded diagnostics
+    // credentials under /api/incidents. It is unrelated to the LiveKit token.
+    res.setHeader("Set-Cookie", diagnosticsCookie(options.room_name));
     res.status(200).json({
       server_url: process.env.NEXT_PUBLIC_LIVEKIT_URL,
-      participant_token: await createToken(options),
+      participant_token: participantToken,
     });
   } catch (err) {
     console.error("Error generating token:", err);
