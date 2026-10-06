@@ -49,6 +49,9 @@ export type DetectorInput = {
 /** Receiver evidence only. It deliberately excludes media and transcript data. */
 export type IncidentSample = {
   capturedAt: string;
+  visibility?: "visible" | "hidden";
+  videoVisible?: boolean;
+  videoPlaying?: boolean;
   monotonicMs: number;
   video?: Record<string, number>;
   audio?: Record<string, number>;
@@ -115,6 +118,9 @@ function numericSample(input: DetectorInput): IncidentSample | undefined {
   if (!Object.keys(video).length && !Object.keys(audio).length) return undefined;
   return {
     capturedAt: new Date(input.wallMs).toISOString(),
+    visibility: input.visible ? "visible" : "hidden",
+    videoVisible: input.videoVisible,
+    videoPlaying: input.videoPlaying,
     monotonicMs: Math.round(input.monotonicMs),
     ...(Object.keys(video).length ? { video } : {}),
     ...(Object.keys(audio).length ? { audio } : {}),
@@ -333,27 +339,24 @@ export class FreezeDetector {
 
 function likelyCause(_reason: IncidentReason, samples: IncidentSample[]): string | undefined {
   if (!samples.length) return undefined;
-  const delta = (kind: "video" | "audio", key: string) => {
-    const first = samples.find((sample) => typeof sample[kind]?.[key] === "number")?.[kind]?.[key];
-    const last = [...samples].reverse().find((sample) => typeof sample[kind]?.[key] === "number")?.[kind]?.[key];
-    return typeof first === "number" && typeof last === "number" ? last - first : 0;
-  };
-  if (delta("video", "packetsLost") > 0 || delta("audio", "packetsLost") > 0) {
-    return "network_delivery_uncertain";
-  }
-  // A freeze counter alone cannot locate the failure. Only suggest receiver
-  // decoding when complete frames arrived while decoding stopped in a sample
-  // interval. Sender vs network stalls require matching server-side evidence.
+  let decoderEvidence = false;
+  const observable = (sample: IncidentSample) => sample.visibility !== "hidden" &&
+    sample.videoVisible !== false && sample.videoPlaying !== false;
   for (let index = 1; index < samples.length; index++) {
-    const before = samples[index - 1].video;
-    const after = samples[index].video;
-    if (before?.framesReceived !== undefined && after?.framesReceived !== undefined &&
-        before.framesDecoded !== undefined && after.framesDecoded !== undefined &&
-        after.framesReceived > before.framesReceived && after.framesDecoded === before.framesDecoded) {
-      return "receiver_decode_uncertain";
+    const before = samples[index - 1], after = samples[index];
+    // Don't attribute changes spanning hidden/paused or missing polls to the
+    // visible incident; preserve the raw context for subsequent review.
+    if (!observable(before) || !observable(after) || after.monotonicMs - before.monotonicMs > 2500) continue;
+    for (const kind of ["video", "audio"] as const) {
+      const a = before[kind]?.packetsLost, b = after[kind]?.packetsLost;
+      if (a !== undefined && b !== undefined && b > a) return "network_delivery_uncertain";
     }
+    if (before.video?.framesReceived !== undefined && after.video?.framesReceived !== undefined &&
+        before.video.framesDecoded !== undefined && after.video.framesDecoded !== undefined &&
+        after.video.framesReceived > before.video.framesReceived &&
+        after.video.framesDecoded === before.video.framesDecoded) decoderEvidence = true;
   }
-  return "unknown";
+  return decoderEvidence ? "receiver_decode_uncertain" : "unknown";
 }
 
 /** Extract only documented numeric inbound-rtp counters from a track report. */

@@ -141,3 +141,16 @@ console.log("freeze detector tests passed");
   detector.flushPending();
   assert.deepEqual(detector.drainReady(), []);
 }
+
+// Hidden-window losses are retained as context, not blamed on visible playback.
+{
+  const detector = new FreezeDetector();
+  detector.ingest(sample(start, {video: {packetsLost: 0}}));
+  detector.ingest(sample(start+1000, {visible:false,video:{packetsLost:5}}));
+  detector.ingest(sample(start+2000, {video:{packetsLost:5}}));
+  detector.manual(sample(start+3000));
+  detector.flushPending();
+  const report=detector.drainReady()[0];
+  assert.equal(report.likelyCause,"unknown");
+  assert.equal(report.samples.some(s=>s.visibility==='hidden'),true);
+}
