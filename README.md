@@ -100,3 +100,33 @@ when the user connects. Browser microphone permission is still required. The
 flag is not stored in settings cookies; ordinary links retain the muted default.
 Manual mute is preserved across rerenders and transport reconnects. `audio=0`
 hides the agent audio visualization without muting speech playback.
+
+### Freeze incident reports
+
+The playground records numeric receiver diagnostics automatically for visible
+video stalls/native freeze-counter changes and audio concealment spikes.
+**Report freeze** saves a manual incident. Reports contain a bounded recent
+metrics window, room ID, UTC/monotonic timestamps and optional clock-offset /
+main-thread evidence; no video, microphone samples, transcripts or ICE addresses
+are collected. Cause labels are uncertain hypotheses, not verified diagnoses.
+
+The same-origin `/api/incidents` endpoint validates room-scoped diagnostics
+capabilities, size/sample limits and a strict numeric schema, then emits structured
+`avatar_freeze_incident` entries into the Firebase project's Cloud Logging.
+Credentials grant only telemetry submission, not LiveKit/media access. Pending
+reports use a small local queue for up to 24 hours and retry after network loss.
+Rate limiting and duplicate suppression are bounded per server instance; incident
+UUIDs allow deduplication across replicas/retries.
+
+In Logs Explorer for `video-clone-504ba`, query:
+
+```text
+resource.type="cloud_run_revision"
+jsonPayload.event="avatar_freeze_incident"
+jsonPayload.room="ROOM_NAME"
+```
+
+Use `jsonPayload.id="REPORT_UUID"` for a specific report. Correlate its room and
+time window with `renderer_telemetry` and `renderer_candidate_starvation_*`
+events in the avatar worker's archived S3 logs. The diagnostic stream does not
+change playback buffers, microphone settings, or rendering.

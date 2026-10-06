@@ -21,6 +21,7 @@ import {
 import { useRemoteSession } from "@/hooks/useRemoteSession";
 import { useConfig } from "@/hooks/useConfig";
 import { useReceiverJitterBuffer } from "@/hooks/useReceiverJitterBuffer";
+import { useFreezeDetector } from "@/hooks/useFreezeDetector";
 import { useUplinkLatency } from "@/hooks/useUplinkLatency";
 import { PartialMessage } from "@bufbuild/protobuf";
 import {
@@ -36,6 +37,7 @@ import {
 } from "@livekit/components-react";
 import {
   ConnectionState,
+  RemoteTrack,
   TokenSourceConfigurable,
   TokenSourceFetchOptions,
   Track,
@@ -105,6 +107,16 @@ export default function Playground({
   const { connectionState } = session;
   const agent = useAgent(session);
   const messages = useSessionMessages(session);
+  const [agentVideoElement, setAgentVideoElement] = useState<HTMLVideoElement | null>(null);
+  const agentVideoTrack = agent.cameraTrack?.publication?.track as RemoteTrack | undefined;
+  const agentAudioTrack = agent.microphoneTrack?.publication?.track as RemoteTrack | undefined;
+  const { reportFreeze, reportStatus } = useFreezeDetector({
+    room: session.room,
+    connected: connectionState === ConnectionState.Connected,
+    videoTrack: agentVideoTrack,
+    audioTrack: agentAudioTrack,
+    videoElement: agentVideoElement,
+  });
 
   const {
     events: clientEvents,
@@ -207,6 +219,8 @@ export default function Playground({
     const videoContent = agent.cameraTrack ? (
       <VideoTrack
         trackRef={agent.cameraTrack}
+        ref={setAgentVideoElement}
+        data-freeze-agent-video="true"
         className={`absolute top-1/2 -translate-y-1/2 ${videoFitClassName} object-position-center w-full h-full`}
       />
     ) : null;
@@ -610,6 +624,8 @@ const agentAttributes = useParticipantAttributes({
           isRecording={isRecording}
           recordingDuration={recordingDuration}
           onRecordClicked={toggleRecording}
+          onReportFreeze={reportFreeze}
+          freezeReportStatus={reportStatus}
           onConnectClicked={() => {
             if (connectionState === ConnectionState.Disconnected) {
               startSession();
