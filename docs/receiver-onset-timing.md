@@ -24,5 +24,9 @@ source/receiver evidence is recorded with the paired LiveKit release.
 Rollback the scoped mapping to video80/audio0 and deploy the revision. GPU and
 voice settings do not need to change for this frontend rollback.
 
-The isolated `digital-human-serverless-test` agent uses the same reviewed
-video-only policy, so the internal serverless admin can reuse this playground.
+As of October 13, `digital-human-serverless-test` uses the shared target for
+both audio and video (625/625 ms) for a user-requested playback comparison. Its
+previous 625/0 mapping is superseded; the October 5 measurements above describe
+the older refinement experiment, not acceptance of this new comparison. See
+[main-avatar playback comparison](main-avatar-playback-2026-10-13.md). Reverting
+that comparison restores serverless audio0; the refinement agent remains 625/0.
