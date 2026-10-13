@@ -1,8 +1,9 @@
 import type { RemoteTrack } from "livekit-client";
 
-const REVIEWED_DEV_AGENTS = new Set([
+// Keep the older refinement experiment isolated. The main serverless avatar
+// uses the shared target for both audio and video for playback comparison.
+const ZERO_AUDIO_TARGET_AGENTS = new Set([
   "digital-human-expression-refinement-dev",
-  "digital-human-serverless-test",
 ]);
 
 export function receiverTargetMs(
@@ -10,7 +11,7 @@ export function receiverTargetMs(
   agentName: string | undefined,
   defaultTargetMs: number,
 ): number {
-  if (agentName && REVIEWED_DEV_AGENTS.has(agentName)) {
+  if (agentName && ZERO_AUDIO_TARGET_AGENTS.has(agentName)) {
     return kind === "video" ? defaultTargetMs : 0;
   }
   return defaultTargetMs;

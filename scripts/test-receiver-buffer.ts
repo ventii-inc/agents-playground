@@ -14,6 +14,7 @@ test("the reviewed target is isolated from production and other agents", () => {
     "",
     "digital-human",
     "digital-human-other-dev",
+    "digital-human-serverless-test",
   ]) {
     for (const kind of ["audio", "video"]) {
       assert.equal(receiverTargetMs(kind, agent, 625), 625);
@@ -25,7 +26,7 @@ test("the reviewed target is isolated from production and other agents", () => {
   assert.equal(receiverTargetMs("video", reviewedAgent, 350), 350);
   assert.equal(receiverTargetMs("audio", reviewedAgent, 350), 0);
   assert.equal(receiverTargetMs("video", "digital-human-serverless-test", 625), 625);
-  assert.equal(receiverTargetMs("audio", "digital-human-serverless-test", 625), 0);
+  assert.equal(receiverTargetMs("audio", "digital-human-serverless-test", 625), 625);
 });
 
 test("zero resets an existing audio target and both supported APIs agree", () => {
